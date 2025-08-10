@@ -5,7 +5,7 @@ BASE        := $(DIST)/base
 CHROME_DIR  := $(DIST)/chrome
 FIREFOX_DIR := $(DIST)/firefox
 
-# Prefer JSONC if present, else JSON
+# Use manifest.jsonc if available, otherwise manifest.json
 SRC_MANIFEST := $(firstword $(wildcard $(SRC)/manifest.jsonc) $(wildcard $(SRC)/manifest.json))
 
 .DEFAULT_GOAL := all
@@ -15,20 +15,20 @@ SRC_MANIFEST := $(firstword $(wildcard $(SRC)/manifest.jsonc) $(wildcard $(SRC)/
 
 all: chrome firefox
 
-# ----- Tool sanity (fail early)
+# ----- Verify required tools exist
 check:
 	@for bin in jq zip rsync node npx; do \
 	  command -v $$bin >/dev/null 2>&1 || { echo "missing required tool: $$bin" >&2; exit 1; }; \
 	done
 
-# ----- Normalize manifest to dist/base and copy the rest of src
+# ----- Copy sources to dist/base with a comment-free manifest
 base: $(BASE)/manifest.json
 
 # Ensure base directory exists
 $(BASE):
 	@mkdir -p "$@"
 
-# Normalize manifest + copy source to base directory
+# Strip comments from manifest and copy source files to base directory
 $(BASE)/manifest.json: | $(BASE) check
 ifneq ($(suffix $(SRC_MANIFEST)),.jsonc)
 	@echo "[base] copy: $(SRC)/manifest.json -> $@"
@@ -39,12 +39,12 @@ else  # Convert JSONC to JSON
 endif
 	@rsync -a --exclude 'manifest.json' --exclude 'manifest.jsonc' "$(SRC)/" "$(BASE)/"
 
-# ----- Version artifact (used by zips)
+# ----- Save version for naming zip files
 $(DIST)/version.txt: base
 	@mkdir -p "$(DIST)"
 	@jq -r '.version' "$(BASE)/manifest.json" > "$@"
 
-# ----- Stage directories
+# ----- Prepare browser-specific directories
 stage-chrome: base
 	@echo "[stage] chrome"
 	@rm -rf "$(CHROME_DIR)"
@@ -56,8 +56,8 @@ stage-firefox: base
 	@rsync -a "$(BASE)/" "$(FIREFOX_DIR)/"
 
 # ----- Firefox manifest transforms
-# Firefox requires the WebExtension polyfill for Promise-based browser.* APIs.
-# Without it, code written for Chrome's chrome.* APIs may fail in Firefox.
+# Firefox needs the WebExtension polyfill for Promise-based browser APIs.
+# Without it, code written for chrome.* may fail in Firefox.
 firefox-manifest: stage-firefox
 	@echo "[firefox] transform manifest"
 	@jq '.background={"scripts":["vendor/browser-polyfill.js","background.js"]}' \
@@ -67,7 +67,7 @@ firefox-manifest: stage-firefox
 validate-firefox: firefox-manifest
 	@jq . "$(FIREFOX_DIR)/manifest.json" >/dev/null
 
-# ----- Zip outputs
+# ----- Create versioned zip archives
 zip-chrome: stage-chrome $(DIST)/version.txt
 	@V=$$(cat "$(DIST)/version.txt"); \
 	echo "[chrome] v$$V"; \

@@ -1,26 +1,25 @@
-// Content script injected on the Strike transactions page. It adds profit
-// information to the table using the current BTC/USD price fetched from the
-// background script.
+// Runs on the Strike transactions page and augments the table with profit
+// details using the latest BTC/USD price from the background script.
 
-// The polyfill is listed before this file in the manifest, so `browser.*`
-// APIs are available in both Chrome and Firefox.
+// The manifest loads the polyfill before this file, so `browser.*` APIs work in
+// both Chrome and Firefox.
 
-// Parses BTC values from strings (removes ₿)
+// Convert a string like "₿0.1" to a number
 const parseBTC = (str) => parseFloat(str.replace(/[₿,]/g, ""));
 
-// Parses USD values from strings (removes $)
+// Convert a string like "$100" to a number
 const parseUSD = (str) => parseFloat(str.replace(/[$,]/g, ""));
 
 // Column index used as a template for new cells (the "Sold" column).
 const SOLD_COLUMN_INDEX = 2;
 
-// Returns true if the "Trading" tab is currently active in the UI
+// Check whether the Trading tab is currently active
 const isTradingTabActive = () => {
     const activeTab = document.querySelector('button[aria-selected="true"]');
     return activeTab?.textContent.trim() === "Trading";
 };
 
-// Fetches current BTC price via extension background message, returns a Promise
+// Ask the background script for the current BTC price
 const fetchCurrentBTCPrice = async () => {
     const response = await browser.runtime.sendMessage({ type: "GET_BTC_PRICE" });
     if (!response || response.error || response.price == null) {
@@ -29,15 +28,15 @@ const fetchCurrentBTCPrice = async () => {
     return response.price;
 };
 
-// Inserts or updates a banner above the table showing total value, profit, and percent
+// Display a banner above the table showing total value, profit, and percent
 const insertTotalProfitBanner = (price, rows) => {
-    // Remove any existing banner to avoid duplicates
+    // Remove any existing banner to prevent duplicates
     document.getElementById("strike-profit-banner")?.remove();
 
     let totalInvested = 0;
     let totalBTC = 0;
 
-    // Sum up all investment and BTC purchased across all rows
+    // Accumulate USD invested and BTC purchased across rows
     rows.forEach(row => {
         const cells = row.querySelectorAll("td");
         if (cells.length < 5) return;
@@ -53,7 +52,7 @@ const insertTotalProfitBanner = (price, rows) => {
     const netProfit = currentValue - totalInvested;
     const percent = (netProfit / totalInvested) * 100;
 
-    // Create the banner HTML
+    // Build the banner markup
     const banner = document.createElement("div");
     banner.id = "strike-profit-banner";
 
@@ -76,12 +75,12 @@ const insertTotalProfitBanner = (price, rows) => {
     banner.appendChild(valueDiv);
     banner.appendChild(profitDiv);
 
-    // Insert the banner before the table
+    // Place the banner before the table
     const target = document.querySelector("table");
     target?.parentElement.insertBefore(banner, target);
 };
 
-// Appends new header cells with provided labels, cloning style from first <th>
+// Add header cells with provided labels, cloning style from the first <th>
 const appendStyledHeaderCells = (headerRow, labels) => {
     const templateTH = headerRow.querySelector("th");
     if (!templateTH) return;
@@ -97,22 +96,22 @@ const appendStyledHeaderCells = (headerRow, labels) => {
     });
 };
 
-// Appends new cells to a row using a template, populates with values and optional color
+// Add new cells to a row using a template, optionally applying a color
 const appendStyledCells = (row, values) => {
     const templateTD = row.querySelectorAll("td")[SOLD_COLUMN_INDEX];
     if (!templateTD) return;
 
     values.forEach(({ text, color = null }) => {
-        // Deep clone the TD
+        // Clone the template cell with its children
         const cloned = templateTD.cloneNode(true);
 
-        // Attempt to find a nested <p> tag to replace text
+        // Replace text inside an inner <p> if present
         const p = cloned.querySelector("p");
         if (p) {
             p.textContent = text;
             if (color) p.style.color = color;
         } else {
-            // Fallback if no <p> is present
+            // Otherwise set text directly on the cell
             cloned.textContent = text;
             if (color) cloned.style.color = color;
         }
@@ -121,8 +120,8 @@ const appendStyledCells = (row, values) => {
     });
 };
 
-// Main logic: injects profit columns and banner if "Trading" tab is active and table present
-const injectProfitColumns = async () => {
+// Main entry point: inserts profit columns and banner when the Trading tab is visible
+const insertProfitColumns = async () => {
     if (!isTradingTabActive()) return;
 
     let price;
@@ -139,14 +138,14 @@ const injectProfitColumns = async () => {
 
     insertTotalProfitBanner(price, [...rows]);
 
-    // Add new header columns only once
+    // Add header columns only once
     const headerRow = table.querySelector("thead tr");
     if (headerRow && !headerRow.dataset.profitColumnsAdded) {
         appendStyledHeaderCells(headerRow, ["BTC Price ($)", "Profit ($)", "Profit (%)"]);
         headerRow.dataset.profitColumnsAdded = "true";
     }
 
-    // Add profit columns for each data row
+    // Append profit columns for each data row
     rows.forEach((row) => {
         if (row.dataset.profitInjected) return;
 
@@ -170,22 +169,22 @@ const injectProfitColumns = async () => {
     });
 };
 
-// Sets up click event on "Trading" tab to re-inject columns after tab change/rerender
+// Re-inject columns when the Trading tab is clicked again
 const setupTabClickListener = () => {
     const tradingTab = [...document.querySelectorAll('[role="tab"]')]
         .find((btn) => btn.textContent.trim() === "Trading");
 
     tradingTab?.addEventListener("click", () => {
-        // Run a few attempts over time to allow for table render
+        // Retry a few times to allow the table to render
         for (let i = 0; i < 5; i++) {
-            setTimeout(injectProfitColumns, i * 1000);
+            setTimeout(insertProfitColumns, i * 1000);
         }
     });
 };
 
-// Run once the DOM is ready.
+// Kick things off once the DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
-    injectProfitColumns();
+    insertProfitColumns();
     setupTabClickListener();
     console.log("StrikeBTC Profit Tracker script loaded");
 });

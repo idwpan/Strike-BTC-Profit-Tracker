@@ -1,37 +1,36 @@
-// Background script: responds to messages from content scripts with the
-// current BTC/USD price fetched from Coindesk.
+// Background script: supplies the current BTC/USD price to content scripts
+// by querying Coindesk.
 
-// Attempt to load the webextension polyfill. In Firefox the CI manifest loads
-// it for us, so calling importScripts there would throw and is safely ignored.
+// Attempt to load the WebExtension polyfill. Firefox loads it via the manifest,
+// so a direct import there would throw and can be ignored.
 try {
   importScripts("vendor/browser-polyfill.js");
 } catch {
-  // Polyfill already available; no action needed.
+  // If the polyfill is already present (e.g. Firefox), ignore the failure.
 }
 
-// Coindesk endpoint for the latest BTC price.
+// Endpoint that returns the latest BTC price from Coindesk.
 const COINDESK_URL =
   "https://data-api.coindesk.com/spot/v1/latest/tick?market=kraken&instruments=BTC-USD&apply_mapping=true";
 
-// Listen for messages sent from other parts of the extension (e.g. content
-// scripts or popup).
+// Listen for requests from the content script.
 browser.runtime.onMessage.addListener(async (message) => {
-  // Only handle messages requesting the BTC price.
+  // Ignore messages unrelated to price queries.
   if (message?.type !== "GET_BTC_PRICE") return;
 
   try {
-    // Fetch the latest BTC price from Coindesk.
+    // Retrieve the latest BTC price from Coindesk.
     const response = await fetch(COINDESK_URL);
     const data = await response.json();
 
     // Use optional chaining and fallback to null if missing.
     const price = data?.Data?.["BTC-USD"]?.PRICE ?? null;
 
-    // Returning an object from an async onMessage listener sends it as the
-    // response to the sender.
+    // Return the price so the content script can display it.
     return { price };
   } catch (error) {
     console.error("Failed to fetch BTC price from background:", error);
+    // Signal failure to the caller.
     return { error: true };
   }
 });
