@@ -6,6 +6,18 @@ The plugin makes a request to [CoinDesk](https://data-api.coindesk.com/spot/v1/l
 
 ![screenshot](screenshot.png)
 
+## Build
+
+A `Makefile` is available to automate building for Chrome and Firefox from a Linux environment.
+
+The following dependencies are required to build: `jq, zip, rsync, node, npx`
+
+### Build Commands
+
+- `make [all]` - Build for both Chrome and Firefox
+- `make [chrome|firefox]` - Build for just Chrome or Firefox
+- `make clean` - Delete built files
+
 ## License: MIT
 
 Copyright 2025 idwpan
