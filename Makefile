@@ -8,6 +8,9 @@ FIREFOX_DIR := $(DIST)/firefox
 # Use manifest.jsonc if available, otherwise manifest.json
 SRC_MANIFEST := $(firstword $(wildcard $(SRC)/manifest.jsonc) $(wildcard $(SRC)/manifest.json))
 
+# Firefox needs the WebExtension polyfill for Promise-based browser APIs.
+FIREFOX_JQ_FILTER := '.background={"scripts":["vendor/browser-polyfill.js","background.js"]} | .browser_specific_settings.gecko={"strict_min_version":"109.0","id":"strike-profit-tracker@proton.me"}'
+
 .DEFAULT_GOAL := all
 .PHONY: all chrome firefox clean check base \
         stage-chrome stage-firefox firefox-manifest validate-firefox \
@@ -56,12 +59,9 @@ stage-firefox: base
 	@rsync -a "$(BASE)/" "$(FIREFOX_DIR)/"
 
 # ----- Firefox manifest transforms
-# Firefox needs the WebExtension polyfill for Promise-based browser APIs.
-# Without it, code written for chrome.* may fail in Firefox.
 firefox-manifest: stage-firefox
 	@echo "[firefox] transform manifest"
-	@jq '.background={"scripts":["vendor/browser-polyfill.js","background.js"]}' \
-	  "$(FIREFOX_DIR)/manifest.json" > "$(FIREFOX_DIR)/manifest.tmp"
+	@jq $(FIREFOX_JQ_FILTER) "$(FIREFOX_DIR)/manifest.json" > "$(FIREFOX_DIR)/manifest.tmp"
 	@mv "$(FIREFOX_DIR)/manifest.tmp" "$(FIREFOX_DIR)/manifest.json"
 
 validate-firefox: firefox-manifest
