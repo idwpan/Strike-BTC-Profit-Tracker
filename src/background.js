@@ -1,37 +1,37 @@
-// Load the polyfill in Chrome MV3 service worker (importScripts exists there).
-// In Firefox MV2 background scripts, the CI manifest injects the polyfill
-// before this file, and importScripts is not defined (safe no-op).
+// Background script: responds to messages from content scripts with the
+// current BTC/USD price fetched from Coindesk.
+
+// Attempt to load the webextension polyfill. In Firefox the CI manifest loads
+// it for us, so calling importScripts there would throw and is safely ignored.
 try {
-    if (typeof importScripts === "function") {
-        importScripts("vendor/browser-polyfill.js");
-    }
-} catch (_) {
-    // Ignore if not available (e.g., Firefox MV2 where the script is already loaded)
+  importScripts("vendor/browser-polyfill.js");
+} catch {
+  // Polyfill already available; no action needed.
 }
 
-// Listen for messages sent from other parts of the extension (e.g. content scripts or popup)
-browser.runtime.onMessage.addListener(async (message, sender) => {
+// Coindesk endpoint for the latest BTC price.
+const COINDESK_URL =
+  "https://data-api.coindesk.com/spot/v1/latest/tick?market=kraken&instruments=BTC-USD&apply_mapping=true";
 
-    // Only handle messages requesting the BTC price
-    if (message?.type !== "GET_BTC_PRICE") return;
+// Listen for messages sent from other parts of the extension (e.g. content
+// scripts or popup).
+browser.runtime.onMessage.addListener(async (message) => {
+  // Only handle messages requesting the BTC price.
+  if (message?.type !== "GET_BTC_PRICE") return;
 
-    try {
-        // Make the API request to fetch the latest BTC price from Coindesk
-        const res = await fetch("https://data-api.coindesk.com/spot/v1/latest/tick?market=kraken&instruments=BTC-USD&apply_mapping=true");
+  try {
+    // Fetch the latest BTC price from Coindesk.
+    const response = await fetch(COINDESK_URL);
+    const data = await response.json();
 
-        // Parse the JSON response
-        const data = await res.json();
+    // Use optional chaining and fallback to null if missing.
+    const price = data?.Data?.["BTC-USD"]?.PRICE ?? null;
 
-        // Use optional chaining and fallback to null if missing
-        const price = data?.Data?.["BTC-USD"]?.PRICE ?? null;
-
-        // Returning an object from an async onMessage listener sends it as the response
-        return { price };
-    } catch (error) {
-        // Log the error for debugging
-        console.error("Failed to fetch BTC price from background:", error);
-
-        // Respond with an error flag
-        return { error: true };
-    }
+    // Returning an object from an async onMessage listener sends it as the
+    // response to the sender.
+    return { price };
+  } catch (error) {
+    console.error("Failed to fetch BTC price from background:", error);
+    return { error: true };
+  }
 });
