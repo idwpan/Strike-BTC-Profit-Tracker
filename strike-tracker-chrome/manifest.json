@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "Strike.me Profit Tracker",
+    "version": "1.0",
+    "description": "Adds profit tracking to Strike.me BTC transactions.",
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "*://dashboard.strike.me/transactions"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "style.css"
+            ]
+        }
+    ],
+    "permissions": [
+        "scripting"
+    ],
+    "host_permissions": [
+        "*://dashboard.strike.me/",
+        "https://data-api.coindesk.com/"
+    ]
+}
