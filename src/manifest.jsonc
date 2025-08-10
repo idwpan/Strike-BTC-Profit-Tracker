@@ -1,0 +1,36 @@
+{
+    // MV3 is our source of truth (Chrome-compatible). In CI we'll transform for Firefox.
+    "manifest_version": 3,
+    "name": "Strike.me Profit Tracker",
+    "version": "1.0.0",
+    "description": "Adds profit tracking to Strike.me BTC transactions.",
+    // Chrome MV3 background service worker. For Firefox we’ll switch this to "scripts".
+    "background": {
+        "service_worker": "background.js"
+    },
+    // Your content script on the transactions page. We’ll keep this identical for both builds.
+    "content_scripts": [
+        {
+            "matches": [
+                "*://dashboard.strike.me/transactions*"
+            ],
+            "js": [
+                "vendor/browser-polyfill.js",
+                "content.js"
+            ],
+            "css": [
+                "style.css"
+            ]
+        }
+    ],
+    // You weren’t using "scripting", so no extension-wide permissions are required.
+    "permissions": [],
+    // MV3 puts URL patterns here. In Firefox MV2 we’ll move these into "permissions".
+    "host_permissions": [
+        "*://dashboard.strike.me/*",
+        "https://data-api.coindesk.com/*"
+    ],
+    "action": {
+        "default_title": "Strike.me Profit Tracker"
+    }
+}

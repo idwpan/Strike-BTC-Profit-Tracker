@@ -1,3 +1,5 @@
+// Content scripts get the polyfill via manifest (list vendor/browser-polyfill.js before this file).
+
 // Parses BTC values from strings (removes ₿)
 const parseBTC = (str) => parseFloat(str.replace(/[₿,]/g, ""));
 
@@ -11,23 +13,20 @@ const isTradingTabActive = () => {
 };
 
 // Fetches current BTC price via extension background message, returns a Promise
-const fetchCurrentBTCPrice = () =>
-    new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ type: "GET_BTC_PRICE" }, (response) => {
-            if (!response || response.error || response.price == null) {
-                reject(new Error("Failed to fetch BTC price from background"));
-            } else {
-                resolve(response.price);
-            }
-        });
-    });
+const fetchCurrentBTCPrice = async () => {
+    // browser.runtime.sendMessage returns a Promise with the response
+    const response = await browser.runtime.sendMessage({ type: "GET_BTC_PRICE" });
+    if (!response || response.error || response.price == null) {
+        throw new Error("Failed to fetch BTC price from background");
+    }
+    return response.price;
+};
 
 // Creates a <td> element with given text and optional color, returns it
 const createCell = (text, color = null) => {
     const td = document.createElement("td");
     td.textContent = text;
-    if (color)
-        td.style.color = color;
+    if (color) td.style.color = color;
     return td;
 };
 
@@ -42,8 +41,7 @@ const insertTotalProfitBanner = (price, rows) => {
     // Sum up all investment and BTC purchased across all rows
     rows.forEach(row => {
         const cells = row.querySelectorAll("td");
-        if (cells.length < 5)
-            return;
+        if (cells.length < 5) return;
 
         const soldUSD = parseUSD(cells[2].innerText);
         const boughtBTC = parseBTC(cells[3].innerText);
@@ -87,16 +85,14 @@ const insertTotalProfitBanner = (price, rows) => {
 // Appends new header cells with provided labels, cloning style from first <th>
 const appendStyledHeaderCells = (headerRow, labels) => {
     const templateTH = headerRow.querySelector("th");
-    if (!templateTH)
-        return;
+    if (!templateTH) return;
 
     labels.forEach(label => {
         const cloned = templateTH.cloneNode(true);
         const labelElem = cloned.querySelector("p") || cloned;
 
         // Replace text content
-        if (labelElem)
-            labelElem.textContent = label;
+        if (labelElem) labelElem.textContent = label;
 
         headerRow.appendChild(cloned);
     });
@@ -105,8 +101,7 @@ const appendStyledHeaderCells = (headerRow, labels) => {
 // Appends new cells to a row using a template, populates with values and optional color
 const appendStyledCells = (row, values) => {
     const templateTD = row.querySelectorAll("td")[2]; // use "Sold" column style
-    if (!templateTD)
-        return;
+    if (!templateTD) return;
 
     values.forEach(({ text, color = null }) => {
         // Deep clone the TD
@@ -116,13 +111,11 @@ const appendStyledCells = (row, values) => {
         const p = cloned.querySelector("p");
         if (p) {
             p.textContent = text;
-            if (color)
-                p.style.color = color;
+            if (color) p.style.color = color;
         } else {
             // Fallback if no <p> is present
             cloned.textContent = text;
-            if (color)
-                cloned.style.color = color;
+            if (color) cloned.style.color = color;
         }
 
         row.appendChild(cloned);
@@ -131,8 +124,7 @@ const appendStyledCells = (row, values) => {
 
 // Main logic: injects profit columns and banner if "Trading" tab is active and table present
 const injectProfitColumns = async () => {
-    if (!isTradingTabActive())
-        return;
+    if (!isTradingTabActive()) return;
 
     let price;
     try {
@@ -144,8 +136,7 @@ const injectProfitColumns = async () => {
 
     const table = document.querySelector("table");
     const rows = table?.querySelectorAll("tbody tr");
-    if (!table || !rows?.length)
-        return;
+    if (!table || !rows?.length) return;
 
     insertTotalProfitBanner(price, Array.from(rows));
 
@@ -158,12 +149,10 @@ const injectProfitColumns = async () => {
 
     // Add profit columns for each data row
     rows.forEach((row) => {
-        if (row.dataset.profitInjected)
-            return;
+        if (row.dataset.profitInjected) return;
 
         const cells = row.querySelectorAll("td");
-        if (cells.length < 5)
-            return;
+        if (cells.length < 5) return;
 
         const soldUSD = parseUSD(cells[2].innerText);
         const boughtBTC = parseBTC(cells[3].innerText);

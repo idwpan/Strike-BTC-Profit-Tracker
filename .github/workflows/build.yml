@@ -1,0 +1,50 @@
+name: Build browser zips
+
+on:
+  push:
+    branches: [main] # adjust if you use a different default branch
+  pull_request: # build on PRs so reviewers can grab artifacts
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Linux runner keeps jq/zip/rsync installs simple
+
+    steps:
+      # 1) Pull the repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) Node is needed only for the JSONC → JSON step (npx strip-json-comments-cli)
+      - name: Set up Node (for jsonc → json)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # any current LTS+ works
+
+      # 3) System tools used by the build scripts
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq zip rsync
+
+      # 4) Ensure local build scripts are runnable
+      - name: Make scripts executable
+        run: chmod +x build-scripts/*.sh
+
+      # 5) Run the one-shot builder (mirrors local dev)
+      #    - Copies src → dist/base
+      #    - Strips comments from manifest.jsonc
+      #    - Chrome: MV3 service worker (no transform)
+      #    - Firefox: MV3 event page w/ polyfill injected (transform-firefox.sh)
+      #    - Emits two zip files at repo root
+      - name: Build all
+        run: ./build-scripts/build-all.sh
+
+      # 6) Publish the zips so they’re downloadable from the job page
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-zips
+          path: |
+            strike-tracker-chrome.zip
+            strike-tracker-firefox.zip
+          if-no-files-found: error # fail loudly if build didn’t produce zips
