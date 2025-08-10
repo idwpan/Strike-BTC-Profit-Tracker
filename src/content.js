@@ -183,8 +183,14 @@ const setupTabClickListener = () => {
 };
 
 // Kick things off once the DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
+const start = () => {
     insertProfitColumns();
     setupTabClickListener();
     console.log("StrikeBTC Profit Tracker script loaded");
-});
+};
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+} else {
+    start();
+}
