@@ -28,7 +28,8 @@
     // MV3 keeps host patterns here; the Firefox build moves them into "permissions".
     "host_permissions": [
         "*://dashboard.strike.me/*",
-        "https://data-api.coindesk.com/*"
+        "https://data-api.coindesk.com/*",
+        "https://api-pub.bitfinex.com/*"
     ],
     "action": {
         "default_title": "Strike.me Profit Tracker"
