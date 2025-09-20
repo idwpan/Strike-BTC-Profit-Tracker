@@ -2,7 +2,7 @@
     // Base manifest in MV3 format; CI adapts it for Firefox.
     "manifest_version": 3,
     "name": "Strike.me Profit Tracker",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Adds profit tracking to Strike.me BTC transactions.",
     // Chrome uses a service worker background; the Firefox build swaps this to "scripts".
     "background": {
