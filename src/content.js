@@ -655,10 +655,18 @@ const insertTotalProfitBanner = (table, summary) => {
     const breakdownDiv = document.createElement("div");
     breakdownDiv.style.marginTop = "0.25em";
     breakdownDiv.style.fontSize = "0.95em";
-    breakdownDiv.innerHTML =
-        `Holdings Breakdown: Trades ${formatBTC(summary.breakdown.tradesBTC)}` +
-        `<br> + Received ${formatBTC(summary.breakdown.receivedBTC)}` +
-        `<br> - Sent ${formatBTC(summary.breakdown.sentBTC)}`;
+
+    const makeLine = (text) => {
+        const d = document.createElement("div");
+        d.textContent = text;
+        return d;
+    };
+
+    breakdownDiv.replaceChildren(
+        makeLine(`Holdings Breakdown: Trades ${formatBTC(summary.breakdown.tradesBTC)}`),
+        makeLine(` + Received ${formatBTC(summary.breakdown.receivedBTC)}`),
+        makeLine(` - Sent ${formatBTC(summary.breakdown.sentBTC)}`)
+    );
 
     banner.appendChild(valueDiv);
     banner.appendChild(costDiv);
